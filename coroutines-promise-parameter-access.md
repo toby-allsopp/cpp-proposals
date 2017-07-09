@@ -1,6 +1,6 @@
 <table>
 <tr><td>Document number</td><td>P?????R0</td></tr>
-<tr><td>Date</td><td>2017-07-08</td></tr>
+<tr><td>Date</td><td>2017-07-??</td></tr>
 <tr><td>Reply-to</td><td>Toby Allsopp &lt;toby@mi6.gen.nz&gt;</td></tr>
 </table>
 
@@ -32,33 +32,63 @@ class concurrent_map
 {
 public:
 
-	[[nodiscard]]
-	cppcoro::lazy_task<> set(KEY key, VALUE value)
-	{
-		cppcoro::async_mutex_lock lock = co_await m_mutex.lock_async();
+  [[nodiscard]]
+  cppcoro::lazy_task<> set(KEY key, VALUE value)
+  {
+    cppcoro::async_mutex_lock lock = co_await m_mutex.lock_async();
 		
-		m_map[key] = value;
-	}
+    m_map[key] = value;
+  }
 
-	[[nodiscard]]
-	cppcoro::lazy_task<std::optional<VALUE>> try_get(KEY key) const
-	{
-	  cppcoro::async_mutex_lock lock = co_await m_mutex.lock_async();
+  [[nodiscard]]
+  cppcoro::lazy_task<std::optional<VALUE>> try_get(KEY key) const
+  {
+    cppcoro::async_mutex_lock lock = co_await m_mutex.lock_async();
 
-	  auto it = m_map.find(key);
-	  if (it != m_map.end()) co_return it->second;
-	  co_return std::nullopt;
-	}
+    auto it = m_map.find(key);
+    if (it != m_map.end()) co_return it->second;
+    co_return std::nullopt;
+  }
 
 private:
-	mutable cppcoro::async_mutex m_mutex;
-	std::map<KEY, VALUE> m_map;
+  mutable cppcoro::async_mutex m_mutex;
+  std::map<KEY, VALUE> m_map;
 };
 ```
+
+Now, it would be very convenient to hoist the code that awaits locking the mutex into the promise object for the coroutine. This would reduce the chanves of making an error by forgetting to lock the mutex and also reduce the bodies of the coroutine non-static member functions to their essence.
+
+Here is an excerpt from a promise type that implements the automatic locking and unlock of the mutex:
+
+```c++
+template<typename T>
+struct lazy_task_with_lock_promose {
+  cppcoro::async_mutex& m_mutex;
+  
+  auto initial_suspend() {
+    return m_mutex.lock_async();
+  }
+  
+  auto final_suspend() {
+    m_mutex.unlock();
+    return suspend_never{};
+  }
+  
+  // ...
+};
+```
+
+The problem is: how does the promise type get a reference to the `async_mutex` object that is a member of the class containing the coroutine?
 
 ## Design Options
 
 ### Use the allocation function
+
+A pointer to the implicit object parameter of a non-static member function coroutine is passed to the allocation function defined in the promise type if (a) such an allocation function is declared and (b) allocation of the coroutine status is required.  If it could be guaranteed that the allocation would be called, it would be possible to allocate some extra storage and copy the implicit object parameter into it such that it could be retrieved from the promise constructor.
+
+This approach is not tenable because it is not guaranteed that the allocation function will be called. To quote [N4663] section [dcl.fct.def.coroutine].7:
+
+> An implementation may need to allocate additional storage for a coroutine.
 
 ### Promise constructor
 
