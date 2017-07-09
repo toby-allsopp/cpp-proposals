@@ -86,11 +86,13 @@ The problem is: how does the promise type get a reference to the `async_mutex` o
 
 A pointer to the implicit object parameter of a non-static member function coroutine is passed to the allocation function defined in the promise type if (a) such an allocation function is declared and (b) allocation of the coroutine status is required.  If it could be guaranteed that the allocation would be called, it would be possible to allocate some extra storage and copy the implicit object parameter into it such that it could be retrieved from the promise constructor.
 
-This approach is not tenable because it is not guaranteed that the allocation function will be called. To quote [N4663] section [dcl.fct.def.coroutine].7:
+This approach is not tenable because it is not guaranteed that the allocation function will be called. To quote [N4663] section [dcl.fct.def.coroutine].7 (emphasis added):
 
-> An implementation may need to allocate additional storage for a coroutine.
+> An implementation *may* need to allocate additional storage for a coroutine.
 
 ### Promise constructor
+
+One way to make the coroutine parameters available to the promise object is to pass references to them to the promise constructor. At present, the promise type is required to be default constructible. We could instead follow the same procedure as when calling an allocation function. 
 
 ## Acknowledgements
 
