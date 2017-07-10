@@ -32,9 +32,8 @@ The following example shows the implenentation of a simple map implemented in
 this style. The types in the `cppcoro` namespace are available in the [cppcoro]
 library, but a brief description is copied below:
 
-* `cppcoro::lazy_task<T>`: A lazy_task represents an asynchronous computation
-  that is executed lazily in that the execution of the coroutine does not start
-  until the task is awaited.
+* `cppcoro::task<T>`: The `task<T>` type represents a computation that completes
+  asynchronously, yielding either a result of type `T` or an exception.
 * `cppcoro::async_mutex`: Provides a simple mutual exclusion abstraction that
   allows the caller to 'co_await' the mutex from within a coroutine to suspend
   the coroutine until the mutex lock is acquired.
@@ -50,7 +49,7 @@ class concurrent_map
 public:
 
   [[nodiscard]]
-  cppcoro::lazy_task<> set(KEY key, VALUE value)
+  cppcoro::task<> set(KEY key, VALUE value)
   {
     cppcoro::async_mutex_lock lock = co_await m_mutex.lock_async();
 		
@@ -58,7 +57,7 @@ public:
   }
 
   [[nodiscard]]
-  cppcoro::lazy_task<std::optional<VALUE>> try_get(KEY key) const
+  cppcoro::task<std::optional<VALUE>> try_get(KEY key) const
   {
     cppcoro::async_mutex_lock lock = co_await m_mutex.lock_async();
 
@@ -83,7 +82,7 @@ unlock of the mutex:
 
 ```c++
 template<typename T>
-struct lazy_task_with_lock_promose {
+struct task_with_lock_promose {
   cppcoro::async_mutex& m_mutex; // how to initialize?
   
   auto initial_suspend() {
@@ -115,11 +114,11 @@ The above example could then be implemented like so:
 
 ```c++
 template<typename T>
-struct lazy_task_with_lock_promise {
+struct task_with_lock_promise {
   cppcoro::async_mutex& m_mutex;
 
   template<typename P1, typename... Pn>
-  lazy_task_with_lock_promise(P1&& p1, Pn...&& pn) : m_mutex(p1.m_mutex) {}
+  task_with_lock_promise(P1&& p1, Pn...&& pn) : m_mutex(p1.m_mutex) {}
   
   // ...
 };
