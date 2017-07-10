@@ -128,7 +128,10 @@ struct lazy_task_with_lock_promise {
 ### Original parameters or copies?
 
 The promise object is constructed after the parameters copies have been made, so
-both the copies and the original parameters are viable choices.
+both the copies and the original parameters are viable choices. Given that the
+coroutine body will access the parameter copies, it is probably least surprising
+for the promise constructor to receive the parameter copies. If identity of any
+of the parameters is important then this is especially important.
 
 ## Alternative Solutions
 
@@ -156,6 +159,25 @@ function of the promise type, if declared, called, for example,
 `coroutine_parameters`. This would be less convenient that using the constructor
 because the promise type would not be able to use reference members to refer to
 coroutine parameters.
+
+## Future extensions
+
+### Customizable parameter copies
+
+Providing the coroutine parameters to the promise object could be used as a
+basis for allowing customization of how the parameters are copied. As an
+example, without thinking it through too much, we could allow the promise type
+to provide a `template<size_t N> auto get_parameter()` member function template.
+If such a function template is provided, access to parameter _n_ in the
+coroutine body could be replaced by a call to `p.get_parameter<n>()`.
+
+A customization facility of this kind would allow certain coroutines to have
+by-reference parameters copied into the promise object in order to avoid
+lifetime issues when the coroutine outlives its parameters.
+
+## Wording
+
+TBD
 
 ## Acknowledgements
 
